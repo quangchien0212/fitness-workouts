@@ -1,29 +1,31 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"os"
+
+	"cloud.google.com/go/firestore"
+	"github.com/go-chi/chi/v5"
+
+	"github.com/quangchien0212/fitness-workouts/internal/common/server"
+	"github.com/quangchien0212/fitness-workouts/internal/trainings/logs"
+	"github.com/quangchien0212/fitness-workouts/internal/trainings/ports"
 )
 
-func hello(w http.ResponseWriter, req *http.Request) {
-
-    fmt.Fprintf(w, "helloooooo\n")
-}
-
-func headers(w http.ResponseWriter, req *http.Request) {
-
-    for name, headers := range req.Header {
-        for _, h := range headers {
-            fmt.Fprintf(w, "%v: %v\n", name, h)
-        }
-    }
-}
-
 func main() {
+	logs.Init()
 
-    http.HandleFunc("/hello", hello)
-    http.HandleFunc("/headers", headers)
+	ctx := context.Background()
+	client, err := firestore.NewClient(ctx, os.Getenv("GCP_PROJECT"))
 
-    http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	defer client.Close()
+
+	server.RunHTTPServer(func(router chi.Router) http.Handler {
+		return ports.HandlerFromMux(ports.NewHttpServer(), router)
+	})
 }
